@@ -6,7 +6,7 @@ msgstr ""
 "Project-Id-Version: Spotifast\n"
 "Report-Msgid-Bugs-To: https://github.com/crmne/spotifast/issues/new?"
 "template=translation.yml\n"
-"POT-Creation-Date: 2026-10-13 15:56+0300\n"
+"POT-Creation-Date: 2026-10-13 16:37+0300\n"
 "PO-Revision-Date: 2026-09-09 13:30+0000\n"
 "Last-Translator: Spotifast contributors\n"
 "Language-Team: French\n"
@@ -307,7 +307,7 @@ msgstr "Paroles"
 msgid "Recent"
 msgstr "Récents"
 
-#: src/ui/queue.rs:92 src/ui/lyrics.rs:78 src/ui/mod.rs:566
+#: src/ui/queue.rs:92 src/ui/lyrics.rs:78 src/ui/mod.rs:568
 msgid "Close"
 msgstr "Fermer"
 
@@ -2723,15 +2723,15 @@ msgstr "Paramètres du proxy"
 msgid "Spotifast {version} • not affiliated with Spotify"
 msgstr "Spotifast {version} • non affilié à Spotify"
 
-#: src/ui/mod.rs:546
+#: src/ui/mod.rs:548
 msgid "Minimize"
 msgstr "Réduire"
 
-#: src/ui/mod.rs:553
+#: src/ui/mod.rs:555
 msgid "Restore"
 msgstr "Restaurer"
 
-#: src/ui/mod.rs:555
+#: src/ui/mod.rs:557
 msgid "Maximize"
 msgstr "Agrandir"
 

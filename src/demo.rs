@@ -5881,6 +5881,33 @@ mod tests {
     }
 
     #[test]
+    fn signed_out_view_only_draws_the_milkdrop_warning() {
+        for warning in [false, true] {
+            let (ctx, mut app) = accessible_app(if warning {
+                "signed-out-milkdrop-warning"
+            } else {
+                "signed-out-account-dialog"
+            });
+            app.auth = AuthStatus::SignedOut;
+            app.dialog = Some(if warning {
+                Dialog::MilkdropWarning
+            } else {
+                Dialog::CreatePlaylist {
+                    name: "Retained account dialog".into(),
+                    public: false,
+                    add_uris: vec![],
+                }
+            });
+            for _ in 0..3 {
+                accessible_frame(&ctx, &mut app, vec![]);
+            }
+            assert_eq!(app.dialog_rect.is_some(), warning);
+            assert!(!app.settings.milkdrop_open);
+            app.backend.shutdown();
+        }
+    }
+
+    #[test]
     fn embedded_milkdrop_warning_keeps_the_mini_player_size() {
         let (ctx, mut app) = accessible_app("milkdrop-mini-size");
         app.settings.winamp_window = true;
