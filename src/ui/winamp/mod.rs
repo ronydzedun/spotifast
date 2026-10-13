@@ -374,6 +374,9 @@ pub fn show(app: &mut App, ui: &mut Ui) {
     } else if now.is_some() {
         ctx.request_repaint_after(Duration::from_millis(220));
     }
+    if matches!(app.dialog, Some(crate::model::Dialog::MilkdropWarning)) {
+        super::dialogs::show(app, &ctx);
+    }
 }
 
 /// The main window as it usually is. Returns whether the visualiser is

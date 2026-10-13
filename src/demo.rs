@@ -1158,6 +1158,7 @@ pub fn apply_flags(app: &mut App, page: Option<&str>, show: Option<&str>) {
                 app.settings.eq_shaded = true;
             }
             "milkdrop" => app.settings.milkdrop_open = true,
+            "milkdrop-warning" => app.dialog = Some(Dialog::MilkdropWarning),
             "pins" => {
                 app.settings.pinned_contexts =
                     vec!["spotify:playlist:pl2".into(), "spotify:playlist:pl4".into()];
@@ -5847,6 +5848,98 @@ mod tests {
             bottom - height
         );
         app.backend.shutdown();
+    }
+
+    #[test]
+    fn milkdrop_warning_can_be_cancelled_with_escape_or_its_button() {
+        use egui::accesskit::{Action as AccessibleAction, Role};
+        for escape in [false, true] {
+            let (ctx, mut app) = accessible_app(if escape {
+                "milkdrop-escape"
+            } else {
+                "milkdrop-cancel"
+            });
+            app.actions.push(Action::ToggleWinampMilkdrop);
+            accessible_frame(&ctx, &mut app, vec![]);
+            // The action opens the dialog after drawing; its next frame
+            // measures the modal before its buttons enter the access tree.
+            accessible_frame(&ctx, &mut app, vec![]);
+            let tree = accessible_frame(&ctx, &mut app, vec![]);
+            assert!(!app.settings.milkdrop_open);
+            let event = if escape {
+                keyboard(egui::Key::Escape, egui::Modifiers::NONE)
+            } else {
+                let cancel = accessible_node(&tree, "Cancel", Role::Button);
+                accessible_action(cancel, AccessibleAction::Click, None)
+            };
+            accessible_frame(&ctx, &mut app, vec![event]);
+            assert!(app.dialog.is_none());
+            assert!(!app.settings.milkdrop_open);
+            assert!(!app.settings.milkdrop_warning_acknowledged);
+            app.backend.shutdown();
+        }
+    }
+
+    #[test]
+    fn embedded_milkdrop_warning_keeps_the_mini_player_size() {
+        let (ctx, mut app) = accessible_app("milkdrop-mini-size");
+        app.settings.winamp_window = true;
+        app.settings.skin_scale = Some(2);
+        app.dialog = Some(Dialog::MilkdropWarning);
+        let wanted = crate::ui::winamp::initial_size(&app.settings);
+        let mut output = ctx.run_ui(
+            egui::RawInput {
+                screen_rect: Some(egui::Rect::from_min_size(
+                    egui::Pos2::ZERO,
+                    egui::vec2(1280.0, 800.0),
+                )),
+                ..Default::default()
+            },
+            |ui| app.frame_ui(ui),
+        );
+        output.textures_delta.clear();
+        for command in &output.viewport_output[&egui::ViewportId::ROOT].commands {
+            if let egui::ViewportCommand::InnerSize(size) = command {
+                assert_eq!(*size, wanted, "the warning must not resize its parent");
+            }
+        }
+        app.backend.shutdown();
+    }
+
+    #[test]
+    fn milkdrop_warning_fits_both_themes_and_all_languages() {
+        for &locale in crate::i18n::LOCALES {
+            for light in [false, true] {
+                for size in [egui::vec2(740.0, 420.0), egui::vec2(1280.0, 800.0)] {
+                    let (ctx, mut app) = accessible_app("milkdrop-warning-layout");
+                    app.locale = locale;
+                    app.settings.language = crate::settings::LanguageChoice::Locale(locale);
+                    app.settings.theme = if light {
+                        crate::settings::ThemeChoice::Light
+                    } else {
+                        crate::settings::ThemeChoice::Dark
+                    };
+                    app.actions.push(Action::SettingsChanged);
+                    app.dialog = Some(Dialog::MilkdropWarning);
+                    let input = egui::RawInput {
+                        screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, size)),
+                        ..Default::default()
+                    };
+                    for _ in 0..3 {
+                        let mut output = ctx.run_ui(input.clone(), |ui| app.frame_ui(ui));
+                        output.textures_delta.clear();
+                    }
+                    let dialog = app.dialog_rect.expect("warning dialog");
+                    assert!(dialog.left() >= 0.0 && dialog.right() <= size.x);
+                    assert!(
+                        dialog.top() >= 0.0 && dialog.bottom() <= size.y,
+                        "locale={locale:?}, light={light}, size={size:?}: {dialog:?}"
+                    );
+                    assert!(!app.settings.milkdrop_open);
+                    app.backend.shutdown();
+                }
+            }
+        }
     }
 
     /// Playlist forms stay sized to their content even on a tall window.

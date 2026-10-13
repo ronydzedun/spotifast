@@ -361,6 +361,8 @@ pub struct Settings {
     pub winamp_shaded: bool,
     /// The MilkDrop window is open (its own window, not part of the skin).
     pub milkdrop_open: bool,
+    /// The first-launch photosensitivity warning has been acknowledged.
+    pub milkdrop_warning_acknowledged: bool,
     /// How long each preset plays before the next, in seconds.
     pub milkdrop_seconds: u32,
     /// How many frames a second the MilkDrop window draws; 0 is uncapped.
@@ -485,6 +487,7 @@ impl Default for Settings {
             eq_shaded: false,
             winamp_shaded: false,
             milkdrop_open: false,
+            milkdrop_warning_acknowledged: false,
             milkdrop_seconds: crate::milkdrop::DEFAULT_SECONDS,
             milkdrop_fps: crate::milkdrop::DEFAULT_FPS,
             milkdrop_screen_hz: 0,
@@ -1102,6 +1105,21 @@ mod tests {
         assert!(!settings.playlist_shaded);
         assert!(!settings.eq_shaded);
         assert!(!settings.winamp_shaded);
+    }
+
+    #[test]
+    fn milkdrop_warning_acknowledgement_is_backward_compatible_and_round_trips() {
+        let older: Settings = serde_json::from_str(r#"{"milkdrop_open": true}"#).unwrap();
+        assert!(older.milkdrop_open);
+        assert!(!older.milkdrop_warning_acknowledged);
+
+        let acknowledged: Settings = serde_json::from_str(
+            r#"{"milkdrop_open": true, "milkdrop_warning_acknowledged": true}"#,
+        )
+        .unwrap();
+        let saved = serde_json::to_string(&acknowledged).unwrap();
+        let restored: Settings = serde_json::from_str(&saved).unwrap();
+        assert!(restored.milkdrop_warning_acknowledged);
     }
 
     #[test]

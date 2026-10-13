@@ -981,6 +981,8 @@ pub enum Dialog {
     PremiumNeeded,
     /// Introduce personal Spotify apps to eligible listeners once.
     PersonalAppIntro,
+    /// Ask before any flashing MilkDrop visuals are shown.
+    MilkdropWarning,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -1287,6 +1289,8 @@ pub enum Action {
     ToggleWinampShade,
     /// Open or close the MilkDrop window.
     ToggleWinampMilkdrop,
+    /// Remember explicit acknowledgement and launch MilkDrop.
+    AcknowledgeMilkdropWarning,
     /// How long each MilkDrop preset plays, in seconds.
     SetMilkdropSeconds(u32),
     SetMilkdropScale(u32),

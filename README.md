@@ -94,6 +94,10 @@ window sizes, controls, and the return to the main player.
 MilkDrop reacts to music playing on this computer, with more than 10,000
 presets downloaded on first use. Open it from the visualiser button,
 Settings, or the mini player's **V** menu.
+The first launch shows a warning about flashes and rapidly changing patterns
+that may trigger seizures in photosensitive people. Cancel closes the warning;
+**I understand, launch** opens MilkDrop and saves your acknowledgment on this
+device.
 
 ![MilkDrop visualiser displaying coloured concentric patterns in Spotifast](docs/assets/images/milkdrop-poster.jpg)
 

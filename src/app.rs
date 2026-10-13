@@ -1086,6 +1086,7 @@ impl App {
         // What was played here is on disk and needs nothing from the
         // network, so the tab has rows before Spotify has answered.
         app.rebuild_recents();
+        app.guard_milkdrop_open();
         app
     }
 
@@ -3310,9 +3311,20 @@ impl App {
         }
     }
 
+    /// Restored settings and every launch path must wait for acknowledgement.
+    fn guard_milkdrop_open(&mut self) {
+        if self.settings.milkdrop_open && !self.settings.milkdrop_warning_acknowledged {
+            self.settings.milkdrop_open = false;
+            self.mark_settings_dirty();
+            self.dialog = Some(Dialog::MilkdropWarning);
+            self.wants_show = true;
+        }
+    }
+
     /// Syncs MilkDrop settings and receives window state and commands.
     #[cfg(feature = "milkdrop")]
     fn sync_milkdrop(&mut self, ctx: &egui::Context) {
+        self.guard_milkdrop_open();
         let presets = self.dirs.milkdrop_dir();
         let open = self.settings.milkdrop_open;
         let size = self.settings.milkdrop_size;
@@ -10561,6 +10573,7 @@ impl App {
             Action::ToggleWinampMilkdrop => {
                 self.settings.milkdrop_open = !self.settings.milkdrop_open;
                 self.settings_dirty = true;
+                self.guard_milkdrop_open();
                 #[cfg(feature = "milkdrop")]
                 if self.settings.milkdrop_open {
                     // A first open has nothing to draw but the idle preset,
@@ -10578,6 +10591,14 @@ impl App {
                         );
                         self.toast(gettext(self.locale, "Downloading MilkDrop preset packs"));
                     }
+                }
+            }
+            Action::AcknowledgeMilkdropWarning => {
+                if matches!(self.dialog, Some(Dialog::MilkdropWarning)) {
+                    self.dialog = None;
+                    self.settings.milkdrop_warning_acknowledged = true;
+                    self.mark_settings_dirty();
+                    self.apply(Action::ToggleWinampMilkdrop, ctx);
                 }
             }
             Action::SetMilkdropSeconds(seconds) => {
@@ -17624,6 +17645,10 @@ mod tests {
     }
 
     fn test_app(name: &str) -> App {
+        test_app_with_settings(name, Settings::default())
+    }
+
+    fn test_app_with_settings(name: &str, settings: Settings) -> App {
         let root =
             std::env::temp_dir().join(format!("spotifast-{name}-test-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&root);
@@ -17634,7 +17659,7 @@ mod tests {
                 state: root.join("state"),
                 cache: root.join("cache"),
             },
-            Settings::default(),
+            settings,
             AppOptions {
                 media_controls: false,
                 restore_sign_in: false,
@@ -17643,6 +17668,87 @@ mod tests {
         );
         app.reveal_theme_changes = false;
         app
+    }
+
+    #[test]
+    fn milkdrop_waits_for_explicit_acknowledgement() {
+        let mut app = test_app("milkdrop-warning");
+        let ctx = egui::Context::default();
+        app.apply(Action::AcknowledgeMilkdropWarning, &ctx);
+        assert!(!app.settings.milkdrop_warning_acknowledged);
+        assert!(!app.settings.milkdrop_open);
+
+        app.apply(Action::ToggleWinampMilkdrop, &ctx);
+        assert!(matches!(app.dialog, Some(Dialog::MilkdropWarning)));
+        assert!(!app.settings.milkdrop_open);
+        assert!(app.winamp.presets.downloading().is_none());
+        app.apply(Action::CloseDialog, &ctx);
+        assert!(app.dialog.is_none());
+        assert!(!app.settings.milkdrop_warning_acknowledged);
+        assert!(!app.settings.milkdrop_open);
+
+        app.apply(Action::ToggleWinampMilkdrop, &ctx);
+        assert!(matches!(app.dialog, Some(Dialog::MilkdropWarning)));
+        // Keep the test offline when the accepted launch lists presets.
+        let presets = app.dirs.milkdrop_dir();
+        std::fs::create_dir_all(&presets).unwrap();
+        std::fs::write(presets.join("test.milk"), "[preset00]\n").unwrap();
+        app.apply(Action::AcknowledgeMilkdropWarning, &ctx);
+        assert!(app.dialog.is_none());
+        assert!(app.settings.milkdrop_warning_acknowledged);
+        assert!(app.settings.milkdrop_open);
+        assert!(app.settings_dirty);
+        assert!(app.winamp.presets.downloading().is_none());
+        app.apply(Action::ToggleWinampMilkdrop, &ctx);
+        assert!(!app.settings.milkdrop_open);
+        app.apply(Action::ToggleWinampMilkdrop, &ctx);
+        assert!(app.settings.milkdrop_open);
+        assert!(app.dialog.is_none(), "later launches need no warning");
+    }
+
+    #[test]
+    fn restored_milkdrop_waits_for_acknowledgement_in_both_players() {
+        for mini in [false, true] {
+            let app = test_app_with_settings(
+                if mini {
+                    "milkdrop-restore-mini"
+                } else {
+                    "milkdrop-restore-main"
+                },
+                Settings {
+                    milkdrop_open: true,
+                    winamp_window: mini,
+                    ..Default::default()
+                },
+            );
+            assert!(!app.settings.milkdrop_open);
+            assert!(matches!(app.dialog, Some(Dialog::MilkdropWarning)));
+            assert!(app.wants_show);
+            assert!(app.settings_dirty);
+            #[cfg(feature = "milkdrop")]
+            assert!(app.milkdrop_host.is_none(), "no visualiser was started");
+        }
+        let app = test_app_with_settings(
+            "milkdrop-restore-accepted",
+            Settings {
+                milkdrop_open: true,
+                milkdrop_warning_acknowledged: true,
+                ..Default::default()
+            },
+        );
+        assert!(app.settings.milkdrop_open);
+        assert!(app.dialog.is_none());
+    }
+
+    #[cfg(feature = "milkdrop")]
+    #[test]
+    fn milkdrop_host_cannot_bypass_the_warning() {
+        let mut app = test_app("milkdrop-host-warning");
+        app.settings.milkdrop_open = true;
+        app.sync_milkdrop(&egui::Context::default());
+        assert!(!app.settings.milkdrop_open);
+        assert!(matches!(app.dialog, Some(Dialog::MilkdropWarning)));
+        assert!(!app.milkdrop_host.as_ref().unwrap().is_running());
     }
 
     /// Demo mode is offline, but it reads cover art and its colours like

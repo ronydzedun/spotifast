@@ -8,6 +8,12 @@ MilkDrop shows colourful animations that react to your music. Open it from
 the top-bar visualiser button, Ctrl+Shift+K, Settings, or the mini player's
 **V** menu. It runs in its own window.
 
+The first time you open MilkDrop, Spotifast shows a photosensitivity warning.
+Its flashes and rapidly changing patterns may trigger seizures in some
+photosensitive people. Choose **Cancel** to close the warning without opening
+MilkDrop, or **I understand, launch** to continue. Your choice to launch is
+saved on this device, so Spotifast will not show the warning again here.
+
 <video autoplay loop muted playsinline preload="metadata" poster="/assets/images/milkdrop-poster.jpg" aria-label="MilkDrop running in Spotifast" style="width: 100%; height: auto;">
   <source src="/assets/images/milkdrop.mp4" type="video/mp4">
 </video>

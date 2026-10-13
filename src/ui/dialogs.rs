@@ -8,6 +8,37 @@ use crate::model::{Action, Dialog};
 use crate::theme;
 
 pub fn show(app: &mut App, ctx: &egui::Context) {
+    // The mini player can be only 275 x 116 pixels, or rolled up to a
+    // title bar. Give the warning its own readable window in either case.
+    if app.settings.winamp_window && matches!(app.dialog, Some(Dialog::MilkdropWarning)) {
+        ctx.show_viewport_immediate(
+            egui::ViewportId::from_hash_of("milkdrop-warning"),
+            egui::ViewportBuilder::default()
+                .with_title(gettext(app.locale, "Photosensitivity warning"))
+                .with_inner_size([500.0, 360.0])
+                .with_resizable(false),
+            |ctx, class| {
+                // The shared interface zoom can change while this window
+                // is open. Keep its logical size, as the mini player does,
+                // so zooming cannot put the buttons outside the window.
+                let size = egui::vec2(500.0, 360.0);
+                if class == egui::ViewportClass::Immediate
+                    && (ctx.viewport_rect().size() - size).abs().max_elem() > 1.0
+                {
+                    ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(size));
+                }
+                show_modal(app, ctx);
+                if ctx.input(|input| input.viewport().close_requested()) {
+                    app.actions.push(Action::CloseDialog);
+                }
+            },
+        );
+    } else {
+        show_modal(app, ctx);
+    }
+}
+
+fn show_modal(app: &mut App, ctx: &egui::Context) {
     let Some(dialog) = app.dialog.clone() else {
         return;
     };
@@ -34,6 +65,23 @@ pub fn show(app: &mut App, ctx: &egui::Context) {
         .show(ctx, |ui| {
             ui.set_width(420.0);
             match dialog {
+                Dialog::MilkdropWarning => {
+                    ui.add(egui::Label::new(egui::RichText::new(gettext(locale, "Photosensitivity warning")).font(theme::bold(20.0)).color(palette.text)).wrap());
+                    ui.add_space(12.0);
+                    ui.add(egui::Label::new(egui::RichText::new(gettext(
+                        locale,
+                        "MilkDrop contains flashing lights and rapidly changing patterns that may trigger seizures in people with photosensitive epilepsy. Do not launch it if you are sensitive to these effects.",
+                    )).font(theme::regular(14.0)).color(palette.secondary)).wrap());
+                    ui.add_space(20.0);
+                    buttons(ui, |ui| {
+                        if theme::pill_button(ui, &palette, &gettext(locale, "I understand, launch"), true).clicked() {
+                            app.actions.push(Action::AcknowledgeMilkdropWarning);
+                        }
+                        if theme::pill_button(ui, &palette, &gettext(locale, "Cancel"), false).clicked() {
+                            app.actions.push(Action::CloseDialog);
+                        }
+                    });
+                }
                 Dialog::PersonalAppIntro => {
                     theme::text(ui, gettext(locale, "Spend less time waiting for Spotify"), theme::bold(20.0), palette.text);
                     ui.add_space(12.0);
